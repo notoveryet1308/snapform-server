@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div
+      id="user-container"
+      style="border: 1px solid; display: flex; flex-wrap: wrap; gap: 20px"
+    ></div>
+    <script type="module">
+      async function connectToServer() {
+        const ws = new WebSocket("ws://localhost:3000/admin");
+        return new Promise((resolve, reject) => {
+          const timer = setInterval(() => {
+            if (ws.readyState === 1) {
+              console.log("Handshake done!!");
+              clearInterval(timer);
+              resolve(ws);
+            }
+          }, 10);
+        });
+      }
+
+      (async function () {
+        const wsAdmin = await connectToServer();
+        const container = document.getElementById("user-container");
+
+        wsAdmin.onmessage = (event) => {
+          const message = JSON.parse(event.data);
+
+          switch (message.action) {
+            case "user-onboarded":
+              const {
+                payload: { id, name },
+              } = message;
+              const userEl = document.createElement("div");
+              userEl.style.backgroundColor = `hsl(${Math.floor(
+                Math.random() * 255
+              )}, 50%, 50%)`;
+              userEl.style.padding = "16px";
+              userEl.style.textAlign = "center";
+              userEl.setAttribute("user-id", id);
+              userEl.innerText = name;
+              container.appendChild(userEl);
+          }
+        };
+      })();
+    </script>
+  </body>
+</html>

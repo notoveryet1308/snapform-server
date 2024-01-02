@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live user</title>
+  </head>
+  <body>
+    <div style="width: 400px" id="join-container">
+      <input id="name-input" type="text" name="name" />
+      <button id="submit-btn" type="button">Submit</button>
+    </div>
+    <script type="module">
+      import { v4 as uuidv4 } from "https://jspm.dev/uuid";
+
+      async function connectToServer() {
+        const ws = new WebSocket("ws://localhost:3000/live-user");
+        return new Promise((resolve, reject) => {
+          const timer = setInterval(() => {
+            if (ws.readyState === 1) {
+              console.log("Handshake done!!");
+              clearInterval(timer);
+              resolve(ws);
+            }
+          }, 10);
+        });
+      }
+
+      (async function () {
+        const wsUser = await connectToServer();
+        const joinContainer = document.getElementById("join-container");
+        const input = document.getElementById("name-input");
+        const btn = document.getElementById("submit-btn");
+
+        btn.addEventListener("click", () => {
+          const userName = input.value;
+          if (!userName) return;
+          const message = {
+            action: "user-onboarding",
+            payload: { name: userName },
+          };
+
+          wsUser.send(JSON.stringify(message));
+          input.value = "";
+        });
+        wsUser.onmessage = (event) => {
+          const { action, payload } = JSON.parse(event.data);
+
+          switch (action) {
+            case "user-onboarded":
+              joinContainer.remove();
+          }
+        };
+      })();
+    </script>
+  </body>
+</html>
