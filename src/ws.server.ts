@@ -1,15 +1,16 @@
-import WebSocket, { WebSocketServer } from "ws";
+import WebSocket from "ws";
 import { v4 as uuidv4 } from "uuid";
 import { Server } from "http";
 import { broadcastToAdmin } from "./utils/socketUtils";
 import {
-  USER_ACTION,
-  bulkUserOnboarded,
-  userOnboarded,
-  userOnboarding,
+  ADMIN_ACTION,
+  PLAYER_ACTION,
+  bulkPlayerOnboarded,
+  playerOnboarded,
+  playerOnboarding,
 } from "./types";
 
-const onboardedUser = new Map();
+const onboardedPlayer = new Map();
 
 const wssOnlineUser = new WebSocket.Server({ noServer: true });
 const wssAdmin = new WebSocket.Server({ noServer: true });
@@ -17,8 +18,9 @@ const wssAdmin = new WebSocket.Server({ noServer: true });
 function wssOnlineUserInit() {
   wssOnlineUser.on("connection", (ws, request) => {
     const urlPath = request.url;
+    console.log({ urlPath });
 
-    if (urlPath !== "/live-user") {
+    if (urlPath !== "/live-player") {
       ws.close(1002, "Unsupported path");
     }
 
@@ -26,25 +28,23 @@ function wssOnlineUserInit() {
       const parsedMessage = JSON.parse(data.toString("utf-8"));
 
       switch (parsedMessage.action) {
-        case USER_ACTION.userOnboarding:
+        case PLAYER_ACTION.playerOnboarding:
           const userId = uuidv4();
-          const {
-            payload: { name },
-          }: userOnboarding = parsedMessage;
-          const userData = { id: userId, name: name };
-          onboardedUser.set(ws, userData);
-          const onBoardedUser: userOnboarded = {
-            action: USER_ACTION.userOnboarded,
-            payload: userData,
+          const { payload }: playerOnboarding = parsedMessage;
+
+          onboardedPlayer.set(ws, payload);
+          const onBoardedPlayer: playerOnboarded = {
+            action: PLAYER_ACTION.playerOnboarded,
+            payload,
           };
 
-          ws.send(JSON.stringify(onBoardedUser));
-          broadcastToAdmin(onBoardedUser);
+          ws.send(JSON.stringify(onBoardedPlayer));
+          broadcastToAdmin(onBoardedPlayer);
       }
     });
 
     ws.on("close", () => {
-      console.log(`Connection closed ${onboardedUser.get(ws)?.name}`);
+      console.log(`Connection closed ${onboardedPlayer.get(ws)?.name}`);
     });
   });
 }
@@ -58,21 +58,21 @@ function wssAdminInit() {
       ws.close(1002, "Unsupported path");
     }
 
-    if (ws.readyState === WebSocket.OPEN && onboardedUser.size > 0) {
-      const allOnboardedUsers = [...onboardedUser.keys()].map((userWS) =>
-        onboardedUser.get(userWS)
-      );
-      const allOnboardedUsersMessage: bulkUserOnboarded = {
-        action: USER_ACTION.userOnboarded,
-        payload: allOnboardedUsers,
-      };
-      ws.send(JSON.stringify(allOnboardedUsersMessage));
-    }
-
     ws.on("message", function (data) {
-      const parsedMessage = JSON.parse(JSON.stringify(data));
+      const { payload, action } = JSON.parse(data.toString("utf-8"));
+      if (
+        action === ADMIN_ACTION.adminOnboarding &&
+        payload === "ok" &&
+        onboardedPlayer.size > 0
+      ) {
+        const allOnboardedPlayers = Array.from(onboardedPlayer.values());
+        const allOnboardedPlayerMessage: bulkPlayerOnboarded = {
+          action: PLAYER_ACTION.bulkPlayerOnboarded,
+          payload: allOnboardedPlayers,
+        };
 
-      console.log({ parsedMessage });
+        ws.send(JSON.stringify(allOnboardedPlayerMessage));
+      }
     });
 
     ws.on("close", () => {
@@ -85,7 +85,7 @@ function upgradeWsServer(httpServer: Server) {
   httpServer.on("upgrade", (request, socket, head) => {
     const pathname = request.url;
 
-    if (pathname === "/live-user") {
+    if (pathname === "/live-player") {
       wssOnlineUser.handleUpgrade(request, socket, head, (ws) => {
         wssOnlineUser.emit("connection", ws, request);
       });
