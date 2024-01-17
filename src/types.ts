@@ -7,8 +7,12 @@ export enum PLAYER_ACTION {
 export enum ADMIN_ACTION {
   adminOnboarding = "admin-onboarding",
   adminOnboarded = "admin-onboarded",
-  startGame = "play-game",
-  pauseGame = "pause-game",
+}
+
+export enum ADMIN_GAME_ACTION {
+  PLAY_GAME = "PLAY_GAME",
+  PAUSE_GAME = "PAUSE_GAME",
+  SKIP_QUESTION = "SKIP_QUESTION",
 }
 
 export type playerProfile = {
@@ -32,7 +36,7 @@ export type bulkPlayerOnboarded = {
   payload: playerProfile[];
 };
 
-export type messageFormat = {
+export type messageFormat<T> = {
   action: string;
-  payload: Object;
+  payload: T;
 };

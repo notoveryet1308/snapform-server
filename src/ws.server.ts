@@ -1,22 +1,28 @@
 import WebSocket from "ws";
 import { v4 as uuidv4 } from "uuid";
 import { Server } from "http";
-import { broadcastToAdmin } from "./utils/socketUtils";
+import {
+  broadcastToAdmin,
+  sendGameActionToAdmin,
+  sendPlayerListInBulKToAdmin,
+} from "./utils/socketUtils";
 import {
   ADMIN_ACTION,
+  ADMIN_GAME_ACTION,
   PLAYER_ACTION,
   bulkPlayerOnboarded,
   playerOnboarded,
   playerOnboarding,
+  playerProfile,
 } from "./types";
 
-const onboardedPlayer = new Map();
+const onboardedPlayer = new Map<WebSocket, playerProfile>();
 
-const wssOnlineUser = new WebSocket.Server({ noServer: true });
+const playerSocket = new WebSocket.Server({ noServer: true });
 const wssAdmin = new WebSocket.Server({ noServer: true });
 
 function wssOnlineUserInit() {
-  wssOnlineUser.on("connection", (ws, request) => {
+  playerSocket.on("connection", (ws, request) => {
     const urlPath = request.url;
     console.log({ urlPath });
 
@@ -29,7 +35,6 @@ function wssOnlineUserInit() {
 
       switch (parsedMessage.action) {
         case PLAYER_ACTION.playerOnboarding:
-          const userId = uuidv4();
           const { payload }: playerOnboarding = parsedMessage;
 
           onboardedPlayer.set(ws, payload);
@@ -59,24 +64,18 @@ function wssAdminInit() {
     }
 
     ws.on("message", function (data) {
-      const { payload, action } = JSON.parse(data.toString("utf-8"));
-      if (
-        action === ADMIN_ACTION.adminOnboarding &&
-        payload === "ok" &&
-        onboardedPlayer.size > 0
-      ) {
-        const allOnboardedPlayers = Array.from(onboardedPlayer.values());
-        const allOnboardedPlayerMessage: bulkPlayerOnboarded = {
-          action: PLAYER_ACTION.bulkPlayerOnboarded,
-          payload: allOnboardedPlayers,
-        };
+      const message = JSON.parse(data.toString("utf-8"));
 
-        ws.send(JSON.stringify(allOnboardedPlayerMessage));
-      }
+      sendPlayerListInBulKToAdmin({
+        adminSocket: ws,
+        message,
+        onboardedPlayer,
+      });
+      sendGameActionToAdmin({ adminSocket: ws, message });
     });
 
     ws.on("close", () => {
-      console.log("Connection closed");
+      console.log("Connection closed !");
     });
   });
 }
@@ -86,8 +85,8 @@ function upgradeWsServer(httpServer: Server) {
     const pathname = request.url;
 
     if (pathname === "/live-player") {
-      wssOnlineUser.handleUpgrade(request, socket, head, (ws) => {
-        wssOnlineUser.emit("connection", ws, request);
+      playerSocket.handleUpgrade(request, socket, head, (ws) => {
+        playerSocket.emit("connection", ws, request);
       });
     }
 
@@ -101,7 +100,7 @@ function upgradeWsServer(httpServer: Server) {
 
 export {
   wssOnlineUserInit,
-  wssOnlineUser,
+  playerSocket,
   wssAdmin,
   wssAdminInit,
   upgradeWsServer,
