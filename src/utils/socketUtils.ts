@@ -5,11 +5,20 @@ import { wssAdmin, playerSocket } from "../ws.server";
 import {
   ADMIN_ACTION,
   ADMIN_GAME_ACTION,
+  GAME_COUNT_DOWN,
   PLAYER_ACTION,
   bulkPlayerOnboarded,
   messageFormat,
   playerProfile,
 } from "../types";
+
+export function broadcastToPlayer<T>(data: messageFormat<T> | null) {
+  playerSocket.clients.forEach((player) => {
+    if (player.readyState === WebSocket.OPEN && data) {
+      player.send(JSON.stringify(data));
+    }
+  });
+}
 
 export function broadcastToAdmin<T>(data: messageFormat<T> | null) {
   wssAdmin.clients.forEach((admin) => {
@@ -65,5 +74,38 @@ export function sendGameActionToAdmin<T>({
         player.send(JSON.stringify(message));
       }
     });
+  }
+}
+
+export function broadcastGameCountdown<T>({
+  adminSocket,
+  message,
+}: {
+  adminSocket: WebSocket;
+  message: messageFormat<T>;
+}) {
+  let { action, payload } = message;
+
+  if (action === GAME_COUNT_DOWN.START) {
+    let countdown = +payload;
+    let countDownTimer = setInterval(() => {
+      if (countdown >= 0) {
+        const message = {
+          action: GAME_COUNT_DOWN.IN_PROGRESS,
+          payload: countdown,
+        };
+        adminSocket.send(JSON.stringify(message));
+        broadcastToPlayer<number>(message);
+      } else {
+        const message = {
+          action: GAME_COUNT_DOWN.DONE,
+          payload: GAME_COUNT_DOWN.DONE,
+        };
+        broadcastToPlayer<string>(message);
+        adminSocket.send(JSON.stringify(message));
+        clearInterval(countDownTimer);
+      }
+      countdown = countdown - 1;
+    }, 1000);
   }
 }

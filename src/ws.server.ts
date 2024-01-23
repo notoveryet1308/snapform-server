@@ -2,6 +2,7 @@ import WebSocket from "ws";
 import { v4 as uuidv4 } from "uuid";
 import { Server } from "http";
 import {
+  broadcastGameCountdown,
   broadcastToAdmin,
   sendGameActionToAdmin,
   sendPlayerListInBulKToAdmin,
@@ -72,6 +73,7 @@ function wssAdminInit() {
         onboardedPlayer,
       });
       sendGameActionToAdmin({ adminSocket: ws, message });
+      broadcastGameCountdown({ adminSocket: ws, message });
     });
 
     ws.on("close", () => {

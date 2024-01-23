@@ -15,6 +15,12 @@ export enum ADMIN_GAME_ACTION {
   SKIP_QUESTION = "SKIP_QUESTION",
 }
 
+export enum GAME_COUNT_DOWN {
+  START = "count-down-start",
+  DONE = "count-down-done",
+  IN_PROGRESS = "count-down-in-progress",
+}
+
 export type playerProfile = {
   id: string;
   name: string;
