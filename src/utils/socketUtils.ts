@@ -89,7 +89,7 @@ export function broadcastGameCountdown<T>({
   if (action === GAME_COUNT_DOWN.START) {
     let countdown = +payload;
     let countDownTimer = setInterval(() => {
-      if (countdown >= 0) {
+      if (countdown > 0) {
         const message = {
           action: GAME_COUNT_DOWN.IN_PROGRESS,
           payload: countdown,
@@ -109,3 +109,27 @@ export function broadcastGameCountdown<T>({
     }, 1000);
   }
 }
+
+// export const broadcastGameQuestion = <T>({
+//   socket,
+//   message,
+// }: {
+//   socket: WebSocket;
+//   message: messageFormat<T>;
+// }) => {
+//   const { action, payload } = message;
+//   let gameQuestionTimer;
+//   let currentQuestionIndex = 0;
+
+//   if (action === GAME_QUESTIONS.SEND) {
+//     gameQuestionTimer = setInterval(() => {
+//       socket.send(
+//         JSON.stringify({
+//           action: GAME_QUESTIONS.QUESTION_ITEM,
+//           payload: javascriptQuiz.questions[currentQuestionIndex],
+//         })
+//       );
+//       currentQuestionIndex++;
+//     }, (javascriptQuiz.metaInfo.inboundTime + 10) * 1000);
+//   }
+// };

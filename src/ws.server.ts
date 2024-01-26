@@ -16,6 +16,7 @@ import {
   playerOnboarding,
   playerProfile,
 } from "./types";
+import gameManager from "./socketResolvers/GameManager";
 
 const onboardedPlayer = new Map<WebSocket, playerProfile>();
 
@@ -74,6 +75,8 @@ function wssAdminInit() {
       });
       sendGameActionToAdmin({ adminSocket: ws, message });
       broadcastGameCountdown({ adminSocket: ws, message });
+      gameManager.setAdminSocket({ ws });
+      gameManager.broadcastQuestion<string>({ message });
     });
 
     ws.on("close", () => {

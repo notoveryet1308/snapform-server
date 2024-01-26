@@ -21,6 +21,14 @@ export enum GAME_COUNT_DOWN {
   IN_PROGRESS = "count-down-in-progress",
 }
 
+export enum GAME_QUESTIONS {
+  SENDING_QUESTION = "SENDING_QUESTION",
+  SEND_QUESTION = "SEND_QUESTION",
+  PAUSE = "PAUSE",
+  SKIP = "SKIP",
+  QUESTION_ITEM = "QUESTION_ITEM",
+}
+
 export type playerProfile = {
   id: string;
   name: string;
