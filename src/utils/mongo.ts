@@ -1,8 +1,8 @@
-import config from "config";
+import appConfig from "../appConfig";
 import mongoose from "mongoose";
 
 mongoose.Promise = Promise;
-mongoose.connect(config.get("dbURI"));
+mongoose.connect(appConfig.dbURI);
 mongoose.connection.on("connected", () => {
   console.log(`connected to mongodb database ⚡⚡`);
 });

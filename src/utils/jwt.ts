@@ -1,14 +1,14 @@
 import jwt from 'jsonwebtoken';
-import config from "config"
+import appConfig from '../appConfig';
 
 
 const publicKey = Buffer.from(
-  config.get("publicKey") as string,
+  appConfig.publicKey as string,
   'base64'
 ).toString('ascii');
 
 const privateKey =  Buffer.from(
-  config.get("privateKey") as string,
+  appConfig.privateKey as string,
   'base64'
 ).toString('ascii');
 
