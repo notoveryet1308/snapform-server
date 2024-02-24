@@ -1,16 +1,42 @@
 import "dotenv/config";
-import express, { Express } from "express";
-import http, { Server } from "http";
+import { Request, Response, NextFunction } from "express";
+import bodyParser from "body-parser";
+import cookieParser from "cookie-parser";
+import cors from "cors";
+import compression from "compression";
 
-import { wssOnlineUserInit, wssAdminInit, upgradeWsServer } from "./ws.server";
+import "./utils/mongo";
 
-const app: Express = express();
-const server: Server = http.createServer(app);
+import { app, server } from "./server";
+import router from "./router";
+import { CustomErrorType } from "types";
+import CustomError from "./utils/CustomError";
+import { withGlobalErrorController } from "./controller/withErrorController";
 
-wssOnlineUserInit();
-wssAdminInit();
-upgradeWsServer(server);
+const init = () => {
+  app.use(
+    cors({
+      credentials: true,
+    })
+  );
+  app.use(compression());
+  app.use(cookieParser());
+  app.use(bodyParser.json());
 
-server.listen(process.env.PORT, () => {
-  console.log("Server listening on port", process.env.PORT);
+  server.listen(process.env.PORT, () => {
+    console.log("Server 🎶 on", `http://localhost:${process.env.PORT}`);
+  });
+};
+
+init();
+
+app.use("/", router());
+app.all("*", (req, res, next) => {
+  const err: CustomErrorType = new CustomError({
+    message: `Can't find ${req.originalUrl} on the server`,
+    statusCode: 404,
+  });
+  next(err);
 });
+
+app.use(withGlobalErrorController);

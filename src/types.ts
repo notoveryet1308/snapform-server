@@ -54,3 +54,9 @@ export type messageFormat<T> = {
   action: string;
   payload: T;
 };
+
+export interface CustomErrorType extends Error {
+  statusCode?: number;
+  status?: string;
+  isOptional?: boolean;
+}
