@@ -5,7 +5,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import compression from "compression";
 
-import "./utils/mongo";
+// import "./utils/mongo";
 
 import { app, server } from "./server";
 import router from "./router";
