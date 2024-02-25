@@ -20,6 +20,7 @@ const LiveQuizSchema = new mongoose.Schema({
       },
     }),
   },
+  createdAt: { type: Date, required: true, default: new Date() },
 });
 
 const LiveQuizModel = mongoose.model("liveQuiz", LiveQuizSchema);
