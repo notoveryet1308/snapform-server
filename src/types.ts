@@ -60,3 +60,9 @@ export interface CustomErrorType extends Error {
   status?: string;
   isOptional?: boolean;
 }
+
+export enum ALL_QUESTION_TYPES {
+  MULTI_SELECT = "multi-select",
+  YES_NO_SELECT = "yes-no-select",
+  SINGLE_SELECT = "single-select",
+}

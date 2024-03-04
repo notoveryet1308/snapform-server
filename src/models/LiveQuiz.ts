@@ -21,6 +21,7 @@ const LiveQuizSchema = new mongoose.Schema({
     }),
   },
   createdAt: { type: Date, required: true, default: new Date() },
+  isLiveQuiz: { type: Boolean, required: false, default: true },
 });
 
 const LiveQuizModel = mongoose.model("liveQuiz", LiveQuizSchema);
