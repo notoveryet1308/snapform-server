@@ -25,4 +25,17 @@ const getAllLiveQuiz = withAsyncErrorController(
   }
 );
 
-export { createLiveQuiz, getAllLiveQuiz };
+const getLiveQuizById = withAsyncErrorController(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { quizId } = req.params;
+
+    const quiz = await LiveQuizModel.findOne({ id: quizId });
+
+    res.status(200).json({
+      status: "success",
+      data: quiz,
+    });
+  }
+);
+
+export { createLiveQuiz, getAllLiveQuiz, getLiveQuizById };
