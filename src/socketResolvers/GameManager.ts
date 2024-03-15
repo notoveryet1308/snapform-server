@@ -1,34 +1,58 @@
 import WebSocket from "ws";
-
-import { javascriptQuiz } from "../data";
-import { GAME_QUESTIONS, messageFormat } from "../types";
+import {
+  GAME_QUESTIONS,
+  LiveQuizDataType,
+  messageFormat,
+  PlayerDataType,
+  GameResponseDataType,
+} from "../types";
 import { broadcastToPlayer } from "../utils/socketUtils";
-import { playerSocket } from "../ws.server";
 
 class GameManager {
-  currentQuestionId = 0;
+  currentQuestionId = null;
   adminSocket: WebSocket | null = null;
-  gameData = javascriptQuiz;
-
-  // constructor({ adminSocket }: { adminSocket: WebSocket }) {
-  //   this.adminSocket = adminSocket;
-  // }
+  liveQuizData: LiveQuizDataType;
+  joinedPlayer: PlayerDataType[] = [];
+  liverPlayer: PlayerDataType[] = [];
+  gameData: GameResponseDataType = {
+    quizId: null,
+    questions: [],
+    livePlayer: this.liverPlayer,
+    joinedPlayer: this.joinedPlayer,
+  };
 
   setAdminSocket({ ws }: { ws: WebSocket }) {
     this.adminSocket = ws;
   }
 
-  broadcastQuestion<T>({ message }: { message: messageFormat<T> }) {
-    const { action } = message;
+  broadcastQuestion() {
+    if (this.currentQuestionId) this.currentQuestionId = 0;
+    else this.currentQuestionId++;
 
-    if (action === GAME_QUESTIONS.SEND_QUESTION && this.adminSocket) {
+    if (this.adminSocket) {
       const messageData = {
         action: GAME_QUESTIONS.QUESTION_ITEM,
-        payload: this.gameData.questions[this.currentQuestionId],
+        payload: this.liveQuizData.questions[this.currentQuestionId],
       };
       this.adminSocket.send(JSON.stringify(messageData));
       broadcastToPlayer(messageData);
     }
+  }
+
+  setLiveQuizData(data: LiveQuizDataType) {
+    this.liveQuizData = data;
+    this.gameData.quizId = data.id;
+  }
+
+  updateJoinedPlayerData(data: PlayerDataType) {
+    this.joinedPlayer.push(data);
+    this.liverPlayer.push(data);
+    this.gameData.livePlayer = this.liverPlayer;
+    this.gameData.joinedPlayer = this.joinedPlayer;
+  }
+  updatedLivePlayerData(data: PlayerDataType[]) {
+    this.liverPlayer = data;
+    this.gameData.livePlayer = this.liverPlayer;
   }
 }
 

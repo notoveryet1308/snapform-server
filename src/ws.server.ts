@@ -1,24 +1,25 @@
 import WebSocket from "ws";
-import { v4 as uuidv4 } from "uuid";
 import { Server } from "http";
 import {
   broadcastGameCountdown,
   broadcastToAdmin,
+  broadcastToPlayer,
   sendGameActionToAdmin,
   sendPlayerListInBulKToAdmin,
 } from "./utils/socketUtils";
 import {
+  PLAYER_ACTION,
+  playerOnboarded,
+  PlayerDataType,
   ADMIN_ACTION,
   ADMIN_GAME_ACTION,
-  PLAYER_ACTION,
-  bulkPlayerOnboarded,
-  playerOnboarded,
-  playerOnboarding,
-  playerProfile,
+  QUIZ_DATA_ACTION,
+  GAME_COUNT_DOWN,
+  GAME_QUESTIONS,
 } from "./types";
 import gameManager from "./socketResolvers/GameManager";
 
-const onboardedPlayer = new Map<WebSocket, playerProfile>();
+const onboardedPlayer = new Map<WebSocket, PlayerDataType>();
 
 const playerSocket = new WebSocket.Server({ noServer: true });
 const wssAdmin = new WebSocket.Server({ noServer: true });
@@ -33,25 +34,43 @@ function wssOnlineUserInit() {
     }
 
     ws.on("message", function (data) {
-      const parsedMessage = JSON.parse(data.toString("utf-8"));
+      const { action, payload } = JSON.parse(data.toString("utf-8"));
 
-      switch (parsedMessage.action) {
-        case PLAYER_ACTION.playerOnboarding:
-          const { payload }: playerOnboarding = parsedMessage;
+      if (action === PLAYER_ACTION.playerOnboarding) {
+        gameManager.updateJoinedPlayerData(payload);
+        const onBoardedPlayer: playerOnboarded = {
+          action: PLAYER_ACTION.playerOnboarded,
+          payload,
+        };
 
-          onboardedPlayer.set(ws, payload);
-          const onBoardedPlayer: playerOnboarded = {
-            action: PLAYER_ACTION.playerOnboarded,
-            payload,
-          };
+        broadcastToAdmin(onBoardedPlayer);
+        broadcastToPlayer(onBoardedPlayer);
+        onboardedPlayer.set(ws, payload);
+      }
 
-          ws.send(JSON.stringify(onBoardedPlayer));
-          broadcastToAdmin(onBoardedPlayer);
+      if (action === PLAYER_ACTION.playerQuestionResponse) {
+        console.log(payload);
+      }
+
+      if (action === QUIZ_DATA_ACTION.LIVE_QUIZ_ID) {
+        const message = {
+          action: QUIZ_DATA_ACTION.IS_QUIZ_LIVE,
+          payload: gameManager.gameData.quizId === payload,
+        };
+        ws.send(JSON.stringify(message));
       }
     });
 
     ws.on("close", () => {
-      console.log(`Connection closed ${onboardedPlayer.get(ws)?.name}`);
+      const disconnectedPlayer = onboardedPlayer.get(ws);
+      const message = {
+        action: "PLAYER_DISCONNECTED",
+        payload: disconnectedPlayer,
+      };
+      onboardedPlayer.delete(ws);
+      gameManager.updatedLivePlayerData(Array.from(onboardedPlayer.values()));
+      broadcastToAdmin(message);
+      broadcastToPlayer(message);
     });
   });
 }
@@ -67,16 +86,36 @@ function wssAdminInit() {
 
     ws.on("message", function (data) {
       const message = JSON.parse(data.toString("utf-8"));
+      const { action, payload } = message;
 
-      sendPlayerListInBulKToAdmin({
-        adminSocket: ws,
-        message,
-        onboardedPlayer,
-      });
-      sendGameActionToAdmin({ adminSocket: ws, message });
-      broadcastGameCountdown({ adminSocket: ws, message });
-      gameManager.setAdminSocket({ ws });
-      gameManager.broadcastQuestion<string>({ message });
+      if (!gameManager.adminSocket) gameManager.setAdminSocket({ ws });
+
+      if (action === ADMIN_ACTION.adminOnboarding) {
+        sendPlayerListInBulKToAdmin({
+          adminSocket: ws,
+          message,
+        });
+      }
+
+      if (
+        ADMIN_GAME_ACTION.PLAY_GAME ||
+        ADMIN_GAME_ACTION.PAUSE_GAME ||
+        ADMIN_GAME_ACTION.SKIP_QUESTION
+      ) {
+        sendGameActionToAdmin({ adminSocket: ws, message });
+      }
+
+      if (action === "SEND_QUIZ_DATA") {
+        gameManager.setLiveQuizData(payload);
+      }
+
+      if (action === GAME_COUNT_DOWN.START) {
+        broadcastGameCountdown({ adminSocket: ws, message });
+      }
+
+      if (action === GAME_QUESTIONS.QUESTION_ITEM) {
+        gameManager.broadcastQuestion();
+      }
     });
 
     ws.on("close", () => {

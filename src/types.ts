@@ -2,6 +2,7 @@ export enum PLAYER_ACTION {
   playerOnboarding = "player-onboarding",
   playerOnboarded = "player-onboarded",
   bulkPlayerOnboarded = "bulk-player-onboarding",
+  playerQuestionResponse = "player-question-response",
 }
 
 export enum ADMIN_ACTION {
@@ -29,25 +30,26 @@ export enum GAME_QUESTIONS {
   QUESTION_ITEM = "QUESTION_ITEM",
 }
 
-export type playerProfile = {
+export interface PlayerDataType {
   id: string;
   name: string;
-  avatar: string;
-};
+  avatar?: string;
+  isAdmin?: boolean;
+}
 
 export type playerOnboarding = {
   action: PLAYER_ACTION.playerOnboarding;
-  payload: playerProfile;
+  payload: PlayerDataType;
 };
 
 export type playerOnboarded = {
   action: PLAYER_ACTION.playerOnboarded;
-  payload: playerProfile;
+  payload: PlayerDataType;
 };
 
 export type bulkPlayerOnboarded = {
   action: PLAYER_ACTION.bulkPlayerOnboarded;
-  payload: playerProfile[];
+  payload: PlayerDataType[];
 };
 
 export type messageFormat<T> = {
@@ -65,4 +67,51 @@ export enum ALL_QUESTION_TYPES {
   MULTI_SELECT = "multi-select",
   YES_NO_SELECT = "yes-no-select",
   SINGLE_SELECT = "single-select",
+}
+
+export interface QuestionOptionType {
+  order: string;
+  label: string;
+  isCorrectChoice: boolean;
+}
+
+export interface QuizQuestionDataServerType {
+  id: string;
+  questionType: ALL_QUESTION_TYPES;
+  title: string;
+  description: string;
+  options: QuestionOptionType[];
+  timeLimit: number;
+  point: number;
+}
+
+export interface LiveQuizDataType {
+  id: string;
+  title: string;
+  questions: QuizQuestionDataServerType[];
+  createdAt: string;
+  isLiveQuiz: boolean;
+}
+
+export interface QuestionResponseDataType {
+  questionId: string;
+  playerResponse: {
+    playerId: string;
+    name: string;
+    value: QuestionOptionType[];
+    responseTime?: number;
+  }[];
+}
+
+export interface GameResponseDataType {
+  quizId: string;
+  joinedPlayer: PlayerDataType[];
+  livePlayer: PlayerDataType[];
+  questions: QuestionResponseDataType[];
+}
+
+export enum QUIZ_DATA_ACTION {
+  SEND_QUIZ_DATA = "SEND_QUIZ_DATA",
+  LIVE_QUIZ_ID = "LIVE_QUIZ_ID",
+  IS_QUIZ_LIVE = "IS_QUIZ_LIVE",
 }
