@@ -29,27 +29,21 @@ export function broadcastToAdmin<T>(data: messageFormat<T> | null) {
 
 export function sendPlayerListInBulKToAdmin<T>({
   adminSocket,
-  message,
+  payload,
 }: {
   adminSocket: WebSocket;
-  message: messageFormat<T>;
+  payload: PlayerDataType;
 }) {
-  const { payload } = message;
+  if (!gameManager.liverPlayer.some((player) => player.id === payload.id)) {
+    gameManager.updateJoinedPlayerData(payload as PlayerDataType);
+  }
 
-  if (gameManager.liverPlayer.length > 1) {
+  if (gameManager.liverPlayer.length > 0) {
     const allOnboardedPlayers = gameManager.liverPlayer;
     adminSocket.send(
       JSON.stringify({
-        action: PLAYER_ACTION.bulkPlayerOnboarded,
+        action: ADMIN_ACTION.PLAYER_BULK_ONBOARDING_TO_ADMIN,
         payload: allOnboardedPlayers,
-      })
-    );
-  } else {
-    gameManager.updateJoinedPlayerData(payload as PlayerDataType);
-    adminSocket.send(
-      JSON.stringify({
-        action: ADMIN_ACTION.adminOnboarded,
-        payload: payload,
       })
     );
   }

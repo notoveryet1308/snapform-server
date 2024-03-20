@@ -1,4 +1,4 @@
-import WebSocket from "ws";
+import WebSocket, { WebSocketServer } from "ws";
 import { Server } from "http";
 import {
   broadcastGameCountdown,
@@ -9,7 +9,7 @@ import {
 } from "./utils/socketUtils";
 import {
   PLAYER_ACTION,
-  playerOnboarded,
+  PlayerOnboardedType,
   PlayerDataType,
   ADMIN_ACTION,
   ADMIN_GAME_ACTION,
@@ -21,8 +21,8 @@ import gameManager from "./socketResolvers/GameManager";
 
 const onboardedPlayer = new Map<WebSocket, PlayerDataType>();
 
-const playerSocket = new WebSocket.Server({ noServer: true });
-const wssAdmin = new WebSocket.Server({ noServer: true });
+const playerSocket = new WebSocketServer({ noServer: true });
+const wssAdmin = new WebSocketServer({ noServer: true });
 
 function wssOnlineUserInit() {
   playerSocket.on("connection", (ws, request) => {
@@ -36,20 +36,21 @@ function wssOnlineUserInit() {
     ws.on("message", function (data) {
       const { action, payload } = JSON.parse(data.toString("utf-8"));
 
-      if (action === PLAYER_ACTION.playerOnboarding) {
+      if (action === PLAYER_ACTION.PLAYER_ONBOARDING) {
         gameManager.updateJoinedPlayerData(payload);
-        const onBoardedPlayer: playerOnboarded = {
-          action: PLAYER_ACTION.playerOnboarded,
+        const onBoardedPlayer: PlayerOnboardedType = {
+          action: PLAYER_ACTION.PLAYER_ONBOARDED,
           payload,
         };
 
         broadcastToAdmin(onBoardedPlayer);
-        broadcastToPlayer(onBoardedPlayer);
+        ws.send(JSON.stringify(onBoardedPlayer));
         onboardedPlayer.set(ws, payload);
-      }
 
-      if (action === PLAYER_ACTION.playerQuestionResponse) {
-        console.log(payload);
+        broadcastToPlayer({
+          action: QUIZ_DATA_ACTION.JOINED_PLAYER,
+          payload: gameManager.liverPlayer,
+        });
       }
 
       if (action === QUIZ_DATA_ACTION.LIVE_QUIZ_ID) {
@@ -59,12 +60,16 @@ function wssOnlineUserInit() {
         };
         ws.send(JSON.stringify(message));
       }
+
+      if (action === PLAYER_ACTION.PLAYER_QUESTION_RESPONSE) {
+        gameManager.updateGameResponseData(payload);
+      }
     });
 
     ws.on("close", () => {
       const disconnectedPlayer = onboardedPlayer.get(ws);
       const message = {
-        action: "PLAYER_DISCONNECTED",
+        action: PLAYER_ACTION.PLAYER_DISCONNECTED,
         payload: disconnectedPlayer,
       };
       onboardedPlayer.delete(ws);
@@ -90,10 +95,17 @@ function wssAdminInit() {
 
       if (!gameManager.adminSocket) gameManager.setAdminSocket({ ws });
 
-      if (action === ADMIN_ACTION.adminOnboarding) {
+      if (action === ADMIN_ACTION.ADMIN_ONBOARDING) {
+        ws.send(
+          JSON.stringify({
+            action: ADMIN_ACTION.ADMIN_ONBOARDED,
+            payload: payload,
+          })
+        );
+
         sendPlayerListInBulKToAdmin({
           adminSocket: ws,
-          message,
+          payload,
         });
       }
 
@@ -105,7 +117,9 @@ function wssAdminInit() {
         sendGameActionToAdmin({ adminSocket: ws, message });
       }
 
-      if (action === "SEND_QUIZ_DATA") {
+      if (action === QUIZ_DATA_ACTION.SEND_QUIZ_DATA) {
+        console.log({ payload });
+
         gameManager.setLiveQuizData(payload);
       }
 
@@ -113,8 +127,12 @@ function wssAdminInit() {
         broadcastGameCountdown({ adminSocket: ws, message });
       }
 
-      if (action === GAME_QUESTIONS.QUESTION_ITEM) {
+      if (action === GAME_QUESTIONS.SEND_QUESTION) {
         gameManager.broadcastQuestion();
+      }
+
+      if (action === ADMIN_ACTION.ADMIN_QUESTION_RESPONSE) {
+        gameManager.updateGameResponseData(payload);
       }
     });
 
@@ -132,12 +150,12 @@ function upgradeWsServer(httpServer: Server) {
       playerSocket.handleUpgrade(request, socket, head, (ws) => {
         playerSocket.emit("connection", ws, request);
       });
-    }
-
-    if (pathname === "/admin") {
+    } else if (pathname === "/admin") {
       wssAdmin.handleUpgrade(request, socket, head, (ws) => {
         wssAdmin.emit("connection", ws, request);
       });
+    } else {
+      socket.destroy();
     }
   });
 }

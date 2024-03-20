@@ -5,8 +5,9 @@ import {
   messageFormat,
   PlayerDataType,
   GameResponseDataType,
+  PlayerQuizQuestionResponseDataType,
 } from "../types";
-import { broadcastToPlayer } from "../utils/socketUtils";
+import { broadcastToAdmin, broadcastToPlayer } from "../utils/socketUtils";
 
 class GameManager {
   currentQuestionId = null;
@@ -14,11 +15,15 @@ class GameManager {
   liveQuizData: LiveQuizDataType;
   joinedPlayer: PlayerDataType[] = [];
   liverPlayer: PlayerDataType[] = [];
+  currentQuestionResponse: {
+    [key: string]: PlayerQuizQuestionResponseDataType[];
+  } = {};
   gameData: GameResponseDataType = {
     quizId: null,
     questions: [],
     livePlayer: this.liverPlayer,
     joinedPlayer: this.joinedPlayer,
+    result: [],
   };
 
   setAdminSocket({ ws }: { ws: WebSocket }) {
@@ -29,14 +34,16 @@ class GameManager {
     if (this.currentQuestionId) this.currentQuestionId = 0;
     else this.currentQuestionId++;
 
-    if (this.adminSocket) {
-      const messageData = {
-        action: GAME_QUESTIONS.QUESTION_ITEM,
-        payload: this.liveQuizData.questions[this.currentQuestionId],
-      };
-      this.adminSocket.send(JSON.stringify(messageData));
-      broadcastToPlayer(messageData);
-    }
+    const messageData = {
+      action: GAME_QUESTIONS.QUESTION_ITEM,
+      payload: this.liveQuizData.questions[this.currentQuestionId],
+    };
+    // this.adminSocket.send(JSON.stringify(messageData));
+    this.currentQuestionResponse[
+      this.liveQuizData.questions[this.currentQuestionId].id
+    ] = [];
+    broadcastToAdmin(messageData);
+    broadcastToPlayer(messageData);
   }
 
   setLiveQuizData(data: LiveQuizDataType) {
@@ -53,6 +60,27 @@ class GameManager {
   updatedLivePlayerData(data: PlayerDataType[]) {
     this.liverPlayer = data;
     this.gameData.livePlayer = this.liverPlayer;
+  }
+
+  updateGameResponseData(data: PlayerQuizQuestionResponseDataType) {
+    if (
+      this.gameData.quizId === data.quizId &&
+      this.currentQuestionResponse[data.questionId]
+    ) {
+      const scored = data.point + data.responseTime * 100;
+      if (
+        !this.gameData.result.some((res) => res.player.id === data.player.id)
+      ) {
+        this.gameData.result.push({ player: data.player, score: scored });
+      } else {
+        this.gameData.result.forEach((res) => {
+          if (res.player.id === data.player.id) {
+            res.score = res.score + scored;
+          }
+        });
+      }
+      this.currentQuestionResponse[data.questionId].push(data);
+    }
   }
 }
 
